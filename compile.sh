@@ -1,0 +1,1 @@
+g++ a4.cpp -std=c++11 -o a4.out
