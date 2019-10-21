@@ -144,13 +144,13 @@ public:
     
 };
 
-network read_network()
+network read_network(char *file1)
 {
     network Alarm;
     string line;
     int find=0;
     ifstream myfile;
-    myfile.open("alarm.bif.txt");
+    myfile.open(file1);
     string temp;
     string name;
     vector<string> values;
@@ -320,15 +320,19 @@ vector<vector<string> > readFile(string fileName,int n){
 
 
 vector<vector<int> > random_CPT(network Alarm,vector<string>  input_data, int missing_index,int i,vector<vector<int> > CPT){
-    Graph_Node node = (*(Alarm.get_nth_node(missing_index)));
-    vector<string> values = node.get_values();
-    int ra = (rand())%(values.size());
-    input_data[missing_index] = values[ra].substr(1,values[ra].length()-2);
-    //vector<vector<int> > CPT;
+   
+    if(missing_index != -1){
+        Graph_Node node = (*(Alarm.get_nth_node(missing_index)));
+        vector<string> values = node.get_values();
+        int ra = (rand())%(values.size());
+        input_data[missing_index] = values[ra].substr(1,values[ra].length()-2);
+        //vector<vector<int> > CPT;
+    }
     vector<pair<string,string > > mapping;
     for(int j=0;j<input_data.size();j++){
         mapping.push_back(make_pair((*(Alarm.get_nth_node(j))).get_name(),input_data[j]));
     }
+
     for(int k=0;k<Alarm.netSize();k++){
         Graph_Node current = (*(Alarm.get_nth_node(k)));
         vector<string> all_parents = current.get_Parents();
@@ -396,104 +400,115 @@ vector<vector<int> > random_CPT(network Alarm,vector<string>  input_data, int mi
 }
 
 vector<vector<int> > find_new_CPT(network Alarm,vector<vector<float> > CPT_old,vector<string> input_data, int missing_index, int i, vector<vector<int> > CPT){
-    Graph_Node current = (*(Alarm.get_nth_node(missing_index)));
-    vector<string> all_parents = current.get_Parents();
     vector<pair<string,string> > mapping;
     for(int j=0;j<input_data.size();j++){
-        for(int k=0;k<all_parents.size();k++){
-            if(all_parents[k] == (*(Alarm.get_nth_node(j))).get_name()){
-                mapping.push_back(make_pair(all_parents[k],input_data[j]));
+        mapping.push_back(make_pair((*(Alarm.get_nth_node(j))).get_name(),input_data[j]));
+    }
+    //cout << current.get_name() << " " << mapping[missing_index].first << endl;
+    if(missing_index != -1){
+        Graph_Node current = (*(Alarm.get_nth_node(missing_index)));
+        vector<string> all_parents = current.get_Parents();
+        if(all_parents.size() ==0 ){
+            int index = sampling(CPT_old[missing_index]);
+            input_data[missing_index] = (current.get_values()[index]).substr(1,(current.get_values()[index]).size()-2);
+            mapping[missing_index].second = (current.get_values()[index]).substr(1,(current.get_values()[index]).size()-2);
+            //cout << mapping[missing_index].second << endl;
+        }
+        else{
+            int cpt_i_length = (*(Alarm.search_node(all_parents[all_parents.size()-1]))).get_nvalues();
+            vector<int> for_binary;
+            for_binary.push_back(1);
+            for(int p=all_parents.size()-2;p>=0;p--){
+                for_binary.push_back(cpt_i_length);
+                cpt_i_length = cpt_i_length* (*(Alarm.search_node(all_parents[p]))).get_nvalues();
             }
-        }
-    }
-    if(all_parents.size() ==0 ){
-        int index = sampling(CPT_old[missing_index]);
-        input_data[missing_index] = current.get_values()[index];
-    }
-    else{
-        int cpt_i_length = (*(Alarm.search_node(all_parents[all_parents.size()-1]))).get_nvalues();
-        vector<int> for_binary;
-        for_binary.push_back(1);
-        for(int p=all_parents.size()-2;p>=0;p--){
             for_binary.push_back(cpt_i_length);
-            cpt_i_length = cpt_i_length* (*(Alarm.search_node(all_parents[p]))).get_nvalues();
-        }
-        for_binary.push_back(cpt_i_length);
-        cpt_i_length = cpt_i_length * current.get_nvalues();
-        int index_for_cpt = 0;
-        for(int l=0;l<all_parents.size();l++){
-            for(int m=0;m<mapping.size();m++){
-                if(mapping[m].first == all_parents[l]){
-                    vector<string> values = (*(Alarm.search_node(all_parents[l]))).get_values();
-                    for(int q =0;q<values.size();q++){
-                        if(mapping[m].second == values[q].substr(1,values[q].length()-2)){
-                            int pwd = (for_binary.size()) - 2 - l;
-                            index_for_cpt = index_for_cpt + q*for_binary[pwd];
+            cpt_i_length = cpt_i_length * current.get_nvalues();
+            int index_for_cpt = 0;
+            for(int l=0;l<all_parents.size();l++){
+                for(int m=0;m<mapping.size();m++){
+                    if(mapping[m].first == all_parents[l]){
+                        vector<string> values = (*(Alarm.search_node(all_parents[l]))).get_values();
+                        for(int q =0;q<values.size();q++){
+                            if(mapping[m].second == values[q].substr(1,values[q].length()-2)){
+                                int pwd = (for_binary.size()) - 2 - l;
+                                index_for_cpt = index_for_cpt + q*for_binary[pwd];
+                            }
                         }
                     }
                 }
             }
-        }
-        vector<string> current_values = current.get_values();
-        vector<int> current_childern = current.get_children();
-        vector<float> probs;
-        for(int j=0;j<current.get_nvalues();j++){
-            input_data[missing_index] = current.get_values()[j];
-            float prob = 1;
-            for(int k=0;k<current_childern.size();k++){
-                Graph_Node current_child = (*(Alarm.get_nth_node(current_childern[k])));
-                vector<string> current_child_parents = current_child.get_Parents();
-                int cpt_i_length1 = (*(Alarm.search_node(current_child_parents[current_child_parents.size()-1]))).get_nvalues();
-                vector<int> for_binary1;
-                for_binary1.push_back(1);
-                for(int p=current_child_parents.size()-2;p>=0;p--){
+            vector<string> current_values = current.get_values();
+            vector<int> current_childern = current.get_children();
+            vector<float> probs;
+            for(int j=0;j<current.get_nvalues();j++){
+                input_data[missing_index] = current.get_values()[j];
+                float prob = 1;
+                for(int k=0;k<current_childern.size();k++){
+                    Graph_Node current_child = (*(Alarm.get_nth_node(current_childern[k])));
+                    vector<string> current_child_parents = current_child.get_Parents();
+                    int cpt_i_length1 = (*(Alarm.search_node(current_child_parents[current_child_parents.size()-1]))).get_nvalues();
+                    vector<int> for_binary1;
+                    for_binary1.push_back(1);
+                    for(int p=current_child_parents.size()-2;p>=0;p--){
+                        for_binary1.push_back(cpt_i_length1);
+                        cpt_i_length1 = cpt_i_length1* (*(Alarm.search_node(current_child_parents[p]))).get_nvalues();
+                    }
                     for_binary1.push_back(cpt_i_length1);
-                    cpt_i_length1 = cpt_i_length1* (*(Alarm.search_node(current_child_parents[p]))).get_nvalues();
-                }
-                for_binary1.push_back(cpt_i_length1);
-                cpt_i_length1 = cpt_i_length1 * current_child.get_nvalues();
-                int index_for_cpt1 = 0;
-                for(int l=0;l<current_child_parents.size();l++){
-                    for(int m=0;m<mapping.size();m++){
-                        if(mapping[m].first == current_child_parents[l]){
-                            vector<string> values1 = (*(Alarm.search_node(current_child_parents[l]))).get_values();
-                            for(int q =0;q<values1.size();q++){
-                                if(mapping[m].second == values1[q].substr(1,values1[q].length()-2)){
-                                    int pwd = (for_binary1.size()) - 2 - l;
-                                    index_for_cpt1 = index_for_cpt1 + q*for_binary1[pwd];
+                    cpt_i_length1 = cpt_i_length1 * current_child.get_nvalues();
+                    int index_for_cpt1 = 0;
+                    for(int l=0;l<current_child_parents.size();l++){
+                        for(int m=0;m<mapping.size();m++){
+                            if(mapping[m].first == current_child_parents[l]){
+                                vector<string> values1 = (*(Alarm.search_node(current_child_parents[l]))).get_values();
+                                for(int q =0;q<values1.size();q++){
+                                    if(mapping[m].second == values1[q].substr(1,values1[q].length()-2)){
+                                        int pwd = (for_binary1.size()) - 2 - l;
+                                        index_for_cpt1 = index_for_cpt1 + q*for_binary1[pwd];
+                                    }
                                 }
                             }
                         }
                     }
-                }
-                for(int l=0;l<mapping.size();l++){
-                    string namese = current_child.get_name();
-                    if(namese == mapping[l].first){
-                        vector<string> values1 = current_child.get_values();
-                        for(int pl = 0;pl < values1.size(); pl++){
-                            if(values1[pl].substr(1,values1[pl].size()-2) == mapping[l].second){
-                                int pwd  = (for_binary1.size()) - 1;
-                                index_for_cpt1 = index_for_cpt1 + pl * for_binary1[pwd];
+                    for(int l=0;l<mapping.size();l++){
+                        string namese = current_child.get_name();
+                        if(namese == mapping[l].first){
+                            vector<string> values1 = current_child.get_values();
+                            for(int pl = 0;pl < values1.size(); pl++){
+                                if(values1[pl].substr(1,values1[pl].size()-2) == mapping[l].second){
+                                    int pwd  = (for_binary1.size()) - 1;
+                                    index_for_cpt1 = index_for_cpt1 + pl * for_binary1[pwd];
+                                }
                             }
                         }
                     }
-                }
-                for(int l=0;l<Alarm.netSize();l++){
-                    if(current_child.get_name() == (*(Alarm.get_nth_node(l))).get_name()){
-                        prob = (float)prob * (float)CPT_old[l][index_for_cpt1];
+                    for(int l=0;l<Alarm.netSize();l++){
+                        if(current_child.get_name() == (*(Alarm.get_nth_node(l))).get_name()){
+                            prob = (float)prob * (float)CPT_old[l][index_for_cpt1];
+                        }
                     }
                 }
+                prob = (float)prob * (float)CPT_old[missing_index][index_for_cpt + j*(for_binary[for_binary.size()-1])];
+                probs.push_back(prob);
             }
-            prob = (float)prob * (float)CPT_old[missing_index][index_for_cpt + j*(for_binary[for_binary.size()-1])];
-            probs.push_back(prob);
+            int best = sampling(probs);
+            input_data[missing_index] = current.get_values()[best].substr(1,(current.get_values()[best]).size()-2);
+            mapping[missing_index].second = input_data[missing_index];
+            //cout << mapping[missing_index].second << endl;
+            //cout <<endl<< missing_index << " "<< endl;
         }
-        int best = sampling(probs);
-        input_data[missing_index] = current.get_values()[best];
+    }
+    
+    for(int i=0;i<mapping.size();i++){
+        //cout << mapping[i].first << " " << mapping[i].second << endl;
+        if(mapping[i].second == "?"){
+            //cout << "fuck";
+        }
     }
     
     //return CPT;
-    Graph_Node node = (*(Alarm.get_nth_node(missing_index)));
-    vector<string> values = node.get_values();
+    //Graph_Node node = (*(Alarm.get_nth_node(missing_index)));
+    //vector<string> values = node.get_values();
     for(int k=0;k<Alarm.netSize();k++){
         Graph_Node current = (*(Alarm.get_nth_node(k)));
         vector<string> all_parents = current.get_Parents();
@@ -564,61 +579,66 @@ void writeFile(string inputfile,string outfile, network Alarm, vector<vector<flo
         exit(1);
     }
     int count = 0;
-    string temp ;
+    //string temp ;
     bool x  = false;
     ofstream myfile(outfile);
-    while(infile>> temp){
-        //temp = temp.substr(0,temp.length()-2);
-        if(temp == "variable"){
-            x = true;
-            myfile << "\n";
-        }
-        if(x){
-            if(temp == "probability"){
-                myfile << "\n";
-            }
-            if(temp == "table" || temp == "type" || temp == "property"){
-                myfile << "\n";
-                myfile << "\t";
-            }
-            if(temp == "// "){
-                myfile << "\n";
-            }
-            if(temp == "}"){
-                myfile << "\n";
-            }
-            if(temp == to_string(-1)){
-                for(int i=0;i<CPT[count].size();i++){
-                    myfile << CPT[count][i] << " ";
-                    infile >> temp;
+    string line,temp;
+    int c=0;
+    while(!infile.eof())
+    {   c++;
+        getline (infile,line);
+        //cout<<line<<"!!!!"<<endl;
+        if(!infile.eof())
+            myfile<<line<<endl;
+        else
+            myfile<<line;
+        stringstream ss;
+        ss.str(line);
+        ss>>temp;
+        if(temp.compare("probability")==0)
+        {
+            myfile<<"\t";
+            infile>>temp;
+            myfile<<temp<<" ";
+            infile>>temp;
+            for(int i=0;i<CPT[count].size();i++){
+                myfile << CPT[count][i] << " ";
+                infile >> temp;
                     //temp = temp.substr(0,temp.length()-2);
-                }
-                count =  count + 1;
             }
-            myfile << temp << " " ;
+            count =  count + 1;
+            //cout<<temp<<endl;
+            myfile<<temp;
         }
+
     }
+
     myfile.close();
 }
 
 
 
-int main()
+int main(int argc, char *argv[])
 {
     network Alarm;
-    Alarm=read_network();
+    Alarm=read_network(argv[1]);
     vector<Graph_Node> Baysian_network;
     for(int i=0;i<Alarm.netSize();i++){
         Baysian_network.push_back((*(Alarm.get_nth_node(i))));
     }
     vector<vector<string> > we;
-    we = readFile("records.dat",Baysian_network.size());
+    we = readFile(argv[2],Baysian_network.size());
     vector<pair<int,int> > missing_index;
     for(int i=0;i<we.size();i++){
+        bool x = true;
         for(int j=0;j<we[i].size();j++){
             if(we[i][j] == "?"){
                 missing_index.push_back(make_pair(i,j));
+                x= false;
             }
+        }
+        if(x){
+            missing_index.push_back(make_pair(-1,-1));
         }
     }
     vector<vector<int> > CPT;
@@ -630,6 +650,7 @@ int main()
             CPT[i][j] = CPT[i][j]*1000 +1;
         }
     }
+    cout << missing_index.size() << " " << we.size() << endl;
     vector<vector<float> > ret_CPT1;
     //vector<vector<float> > cpt =  find_new_CPT(Alarm,random_CPT(Alarm,we,missing_index),we,missing_index);
     for(int ky =0;ky<5;ky++){
@@ -662,7 +683,7 @@ int main()
         }
         for(int i=0;i<CPT.size();i++){
             for(int j=0;j<CPT[i].size();j++){
-                //CPT[i][j] =0;
+                CPT[i][j] =0;
             }
         }
         for(int i=0;i<we.size();i++){
@@ -670,7 +691,7 @@ int main()
         }
         for(int i=0;i<CPT.size();i++){
             for(int j=0;j<CPT[i].size();j++){
-                //CPT[i][j] =CPT[i][j] *1000 + 1;
+                CPT[i][j] =CPT[i][j] *1000 + 1;
             }
         }
     }
@@ -708,7 +729,7 @@ int main()
         }
         //cout << endl;
     }
-    writeFile("alarm.bif.txt","solved_alarm.bif",Alarm,ret_CPT);
+    writeFile(argv[1],"solved_alarm.bif",Alarm,ret_CPT);
     
     return 0;
 }
