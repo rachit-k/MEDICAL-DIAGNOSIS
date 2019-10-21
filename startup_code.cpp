@@ -6,6 +6,7 @@
 #include <sstream>
 #include <cstdlib>
 #include <map>
+#include <chrono>
 
 
 // Format checker just assumes you have Alarm.bif and Solved_Alarm.bif (your file) in current directory
@@ -29,8 +30,7 @@ public:
         Node_Name=name;
         
         nvalues=n;
-        values=vals;
-        
+        values=vals;        
         
     }
     string get_name()
@@ -78,8 +78,7 @@ public:
         Children.push_back(new_child_index);
         return 1;
     }
-    
-    
+        
     
 };
 
@@ -95,8 +94,7 @@ public:
         Pres_Graph.push_back(node);
         return 0;
     }
-    
-    
+        
     int netSize()
     {
         return Pres_Graph.size();
@@ -242,22 +240,12 @@ network read_network(char *file1)
             listIt->set_CPT(curr_CPT);
             
             
-        }
-        else
-        {
-            
-        }
+        } 
         
-        
-        
-        
-        
-    }
-    
+    }   
     if(find==1)
         myfile.close();
-    
-    
+        
     return Alarm;
 }
 
@@ -580,12 +568,10 @@ void writeFile(string inputfile,string outfile, network Alarm, vector<vector<flo
     }
     int count = 0;
     //string temp ;
-    bool x  = false;
     ofstream myfile(outfile);
     string line,temp;
-    int c=0;
     while(!infile.eof())
-    {   c++;
+    {        
         getline (infile,line);
         //cout<<line<<"!!!!"<<endl;
         if(!infile.eof())
@@ -604,10 +590,8 @@ void writeFile(string inputfile,string outfile, network Alarm, vector<vector<flo
             for(int i=0;i<CPT[count].size();i++){
                 myfile << CPT[count][i] << " ";
                 infile >> temp;
-                    //temp = temp.substr(0,temp.length()-2);
             }
             count =  count + 1;
-            //cout<<temp<<endl;
             myfile<<temp;
         }
 
@@ -620,6 +604,7 @@ void writeFile(string inputfile,string outfile, network Alarm, vector<vector<flo
 
 int main(int argc, char *argv[])
 {
+    std::chrono::time_point<std::chrono::system_clock> begin = std::chrono::system_clock::now();
     network Alarm;
     Alarm=read_network(argv[1]);
     vector<Graph_Node> Baysian_network;
@@ -650,27 +635,40 @@ int main(int argc, char *argv[])
             CPT[i][j] = CPT[i][j]*1000 +1;
         }
     }
-    cout << missing_index.size() << " " << we.size() << endl;
+    //cout << missing_index.size() << " " << we.size() << endl;
     vector<vector<float> > ret_CPT1;
-    //vector<vector<float> > cpt =  find_new_CPT(Alarm,random_CPT(Alarm,we,missing_index),we,missing_index);
-    for(int ky =0;ky<5;ky++){
+    //cout<< (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - begin)).count()<<endl;
+    for(int ky =0;ky<10;ky++)
+    {
+        //cout<<"loop"<<ky<<endl;
+        if((std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - begin)).count()>90000)
+        {
+            //cout<<"break"<<endl;
+            break;
+        }
         vector<vector<float> > ret_CPT;
-        for(int i=0;i<CPT.size();i++){
+        for(int i=0;i<CPT.size();i++)
+        {
             vector<float> x_f(CPT[i].size(),0.0);
             ret_CPT.push_back(x_f);
         }
-        for(int i=0;i<CPT.size();i++){
+        for(int i=0;i<CPT.size();i++)
+        {
             int nvalues = (*(Alarm.get_nth_node(i))).get_nvalues();
-            for(int j=0;j<CPT[i].size()/nvalues;j++){
+            for(int j=0;j<CPT[i].size()/nvalues;j++)
+            {
                 int sum = 0;
                 int count = j;
-                while(count<CPT[i].size()){
+                while(count<CPT[i].size())
+                {
                     sum = sum + CPT[i][count];
                     count =  count + (CPT[i].size()/nvalues);
                 }
                 count = j;
-                while(count<CPT[i].size()){
-                    if(sum == 0){
+                while(count<CPT[i].size())
+                {
+                    if(sum == 0)
+                    {
                         ret_CPT[i][count] = float(0);
                         count = count + (CPT[i].size()/nvalues);
                         continue;
@@ -681,28 +679,37 @@ int main(int argc, char *argv[])
                 }
             }
         }
-        for(int i=0;i<CPT.size();i++){
-            for(int j=0;j<CPT[i].size();j++){
+        for(int i=0;i<CPT.size();i++)
+        {
+            for(int j=0;j<CPT[i].size();j++)
+            {
                 CPT[i][j] =0;
             }
         }
-        for(int i=0;i<we.size();i++){
+        for(int i=0;i<we.size();i++)
+        {
             CPT = find_new_CPT(Alarm,ret_CPT,we[i],missing_index[i].second,i,CPT);
         }
-        for(int i=0;i<CPT.size();i++){
-            for(int j=0;j<CPT[i].size();j++){
+        for(int i=0;i<CPT.size();i++)
+        {
+            for(int j=0;j<CPT[i].size();j++)
+            {
                 CPT[i][j] =CPT[i][j] *1000 + 1;
             }
         }
     }
+    //cout<< (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - begin)).count()<<endl;
     vector<vector<float> > ret_CPT;
-    for(int i=0;i<CPT.size();i++){
+    for(int i=0;i<CPT.size();i++)
+    {
         vector<float> x_f(CPT[i].size(),0.0);
         ret_CPT.push_back(x_f);
     }
-    for(int i=0;i<CPT.size();i++){
+    for(int i=0;i<CPT.size();i++)
+    {
         int nvalues = (*(Alarm.get_nth_node(i))).get_nvalues();
-        for(int j=0;j<CPT[i].size()/nvalues;j++){
+        for(int j=0;j<CPT[i].size()/nvalues;j++)
+        {
             int sum = 0;
             int count = j;
             while(count<CPT[i].size()){
@@ -722,14 +729,7 @@ int main(int argc, char *argv[])
             }
         }
     }
-    for(int i=0;i<CPT.size();i++){
-        for(int j=0;j<CPT[i].size();j++){
-            //cout << ret_CPT[i][j] << " ";
-            //cout << CPT[i][j] << " ";
-        }
-        //cout << endl;
-    }
     writeFile(argv[1],"solved_alarm.bif",Alarm,ret_CPT);
-    
+    //cout<< (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - begin)).count()<<endl;
     return 0;
 }
